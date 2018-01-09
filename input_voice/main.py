@@ -1,5 +1,6 @@
 print("[INFO] initializing, please wait.")
 import speech_recognition as sr
+from os import path
 
 # obtain audio from the microphone
 r = sr.Recognizer()
@@ -11,8 +12,9 @@ with sr.Microphone() as source:
     print("[INFO] audio recorded.")
 
 # write audio to a WAV file
-#with open("microphone-results.wav", "wb") as f:
-#    f.write(audio.get_wav_data())
+wavpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
+with open(wavpath, "wb") as f:
+    f.write(audio.get_wav_data())
 
 """
 with sr.AudioFile('english.wav') as source:
@@ -27,6 +29,11 @@ try:
     transcript = r.recognize_google(audio)
     print("[SUCCESS] Google Speech Recognition thinks you said:")
     print('"'+transcript+'"')
+    
+    txtpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.txt")
+    with open(txtpath, "w") as f:
+        f.write(transcript)
+
 except sr.UnknownValueError:
     print("Google Speech Recognition could not understand audio")
 except sr.RequestError as e:
