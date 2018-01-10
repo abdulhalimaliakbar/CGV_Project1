@@ -20,3 +20,6 @@ while True:
     input_voice.listen()
     extract_phoneme.extract()
     model.predict()
+    print('[INFO] Displaying animation')
+    os.system('./display/main')
+    print('[INFO] done.')
