@@ -2,7 +2,6 @@
 import numpy as np
 
 #keras
-print('loading keras')
 from keras import backend as K
 from keras.utils import np_utils
 from keras.models import Sequential
@@ -11,7 +10,6 @@ from keras import optimizers
 
 from os import path
 
-print('done')
 # parameters
 P = ["EH2", "K", "S", "L", "AH0", "M",
  "EY1", "SH", "N", "P", "OY2", "T",
@@ -41,7 +39,6 @@ OUTPUT_DIM = Ky*36*2 # window size, point number, x, y
 OUTPUT_DIM = Ky*16 # after pca
 CENTER_NODE = 30 # point that center
 
-print(INPUT_DIM, OUTPUT_DIM)
 
 def get_X_raw(phonemes_path):
     X_raw = []
@@ -66,22 +63,24 @@ def pad_raw(raw, WSIZE):
     result = np.array(result)
     return result
 
-phonemepath = path.join(path.dirname(path.realpath(__file__)), 'microphone-result.phoneme')
-xraw = get_X_raw(phonemepath)
-xpad = pad_raw(xraw, Kx)
+def predict():
+    print('[INFO] Predicting...')
+    phonemepath = path.join(path.dirname(path.realpath(__file__)), 'microphone-result.phoneme')
+    xraw = get_X_raw(phonemepath)
+    xpad = pad_raw(xraw, Kx)
 
-model = Sequential([
-    Dense(hidden_unit_num, input_dim=INPUT_DIM, activation='tanh'),
-    Dense(hidden_unit_num, activation='tanh'),
-    Dense(hidden_unit_num, activation='tanh'),
-    Dense(OUTPUT_DIM),
-])
+    model = Sequential([
+        Dense(hidden_unit_num, input_dim=INPUT_DIM, activation='tanh'),
+        Dense(hidden_unit_num, activation='tanh'),
+        Dense(hidden_unit_num, activation='tanh'),
+        Dense(OUTPUT_DIM),
+    ])
 
-weightpath = path.join(path.dirname(path.realpath(__file__)), 'model_weights.h5')
-model.load_weights(weightpath)
+    weightpath = path.join(path.dirname(path.realpath(__file__)), 'model_weights.h5')
+    model.load_weights(weightpath)
 
-y = model.predict(xpad)
-print(y.shape)
+    y = model.predict(xpad)
+    print(y.shape)
 
 #adam = optimizers.Adam(lr=1e-6)
 #model.compile(loss='mean_squared_error', optimizer=adam)

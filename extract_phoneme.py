@@ -44,7 +44,7 @@ def process_textgrid(path, duration):
     number = f.readline().rstrip('\n')
 
     phoneme_list = []
-    print("phoneme number:{}".format(number))
+    #print("phoneme number:{}".format(number))
     phoneme_list.append({"start": 0, "end": start_time, "val": "NOP"})
     for i in range(int(number)):
         s = f.readline().rstrip('\n')
@@ -86,7 +86,8 @@ def wav_to_phoneme(wavepath, transpath, outputpath):
     system('python2 ../p2fa/align.py {} {} /tmp/textgrid'.format(wavepath, transpath))
     textgrid_to_phoneme(wavepath, '/tmp/textgrid', outputpath)
 
-print('[INFO] resampling audio')
-system('sox input_voice/microphone-result.wav -r 16000 input_voice/microphone-result-resample-16000.wav')
-print('[INFO] converting audio to phoneme sequence')
-wav_to_phoneme('input_voice/microphone-result-resample-16000.wav', 'input_voice/microphone-result.txt', 'model/microphone-result.phoneme')
+def extract():
+    print('[INFO] resampling audio')
+    system('sox input_voice/microphone-result.wav -r 16000 input_voice/microphone-result-resample-16000.wav')
+    print('[INFO] converting audio to phoneme sequence')
+    wav_to_phoneme('input_voice/microphone-result-resample-16000.wav', 'input_voice/microphone-result.txt', 'model/microphone-result.phoneme')
