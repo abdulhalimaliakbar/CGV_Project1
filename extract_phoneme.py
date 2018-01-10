@@ -89,4 +89,4 @@ def wav_to_phoneme(wavepath, transpath, outputpath):
 print('[INFO] resampling audio')
 system('sox input_voice/microphone-result.wav -r 16000 input_voice/microphone-result-resample-16000.wav')
 print('[INFO] converting audio to phoneme sequence')
-wav_to_phoneme('input_voice/microphone-result-resample-16000.wav', 'input_voice/microphone-result.txt', 'input_voice/microphone-result.phoneme')
+wav_to_phoneme('input_voice/microphone-result-resample-16000.wav', 'input_voice/microphone-result.txt', 'model/microphone-result.phoneme')
