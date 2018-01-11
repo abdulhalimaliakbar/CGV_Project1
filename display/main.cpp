@@ -10,6 +10,7 @@
 #include "glm.h"
 #include "mtxlib.h"
 #include "trackball.h"
+#include "pca.h"
 
 using namespace std;
 
@@ -51,12 +52,13 @@ void Display(void)
 	glmDraw(mesh, GLM_SMOOTH);
 
 	// render wire model
-	glPolygonOffset(1.0, 1.0);
+	/*glPolygonOffset(1.0, 1.0);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glLineWidth(1.0f);
 	glColor3f(0.6, 0.0, 0.8);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glmDraw(mesh, GLM_SMOOTH);
+	*/
 
 	glPopMatrix();
 
@@ -107,23 +109,119 @@ void motion(int x, int y)
 	last_y = y;
 }
 
+vector<vector<float> > source;
+vector<float> source_sequece;
+int all = 0;
+float pca_ref1 = 10.0;
+float pca_ref2 = 10.0;
+float pca_ref3 = 10.0;
+float pca_ref4 = 10.0;
+float ref1 = 5;
+float ref2 = 5;
+float ref3 = 14;
+float ref4 = 5;
+bool animate = true;
+
+void test()
+{
+	for (int i = 1; i <= mesh->numvertices; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			mesh->vertices[3 * i + j] = (mean_shape[3 * (i - 1) + j] / 30
+										+ ref1 * pca_ref1 * pca_str1[3 * (i - 1) + j] / 30
+										+ ref2 * pca_ref2 * pca_str2[3 * (i - 1) + j] / 30
+										+ ref3 * pca_ref3 * pca_str3[3 * (i - 1) + j] / 30
+										+ (-1)*ref4 * pca_ref4 * pca_str4[3 * (i - 1) + j] / 30);
+		}
+	}
+	glmUnitize(mesh);
+}
+
 void Keyboard(unsigned char key, int x, int y) {
 	switch(key) {
 	case 27: // ESC
 		exit(0);
 		break;
+	case 'z':
+		all = 0;
+		animate = !animate;
+		break;
 	}
 }
+
+
 
 void timf(int value)
 {
 	glutPostRedisplay();
-	glutTimerFunc(1, timf, 0);
+	glutTimerFunc(40, timf, 40);
+	if (animate) {
+		pca_ref1 = source[source_sequece[0]][all];
+		pca_ref2 = source[source_sequece[1]][all];
+		pca_ref3 = source[source_sequece[2]][all];
+		pca_ref4 = source[source_sequece[3]][all];
+		if (all == 0)
+		{
+			//
+			test();
+		}
+		else
+		{
+			test();
+		}
+		all = (all + 1) % source[0].size();
+		/*
+		if (all == 119) {
+			animate = false;
+		}*/
+		glutSetWindowTitle((to_string(all) + "_f1=" + to_string(ref1) + "_f2=" + to_string(ref2) + "_f3=" + to_string(ref3) + "_f4=" + to_string(ref4)).c_str());
+	}
 }
 
+void readFile() {
+	//read sequence
+	FILE *in_seq;
+	float f1;
+	char str[20];
+	char buffer[10], numbuf[10];
+	for (int i = 0; i < 16; i++)
+	{
+		vector<float> temp_vec;
+		sprintf(numbuf, "%d", i);
+		strcpy(str, "sequence");
+		strcat(str, numbuf);
+		in_seq = fopen(str, "r");
+		if (in_seq == NULL)
+		{
+			perror("Error opening file");
+		}
+		while (!feof(in_seq))
+		{
+			fscanf(in_seq, "%f\n",&f1);
+			temp_vec.push_back(f1);
+		}
+		source.push_back(temp_vec);
+		fclose(in_seq);
+	}
+
+	int d1;
+	in_seq = fopen("correspond_sequence", "r");
+	if (in_seq == NULL)
+	{
+		perror("Error opening file");
+	}
+	while (!feof(in_seq))
+	{
+		fscanf(in_seq, "%d\n", &d1);
+		source_sequece.push_back(d1);
+	}
+	fclose(in_seq);
+}
 
 int main(int argc, char *argv[])
 {
+	readFile();
 	WindWidth = 1024;
 	WindHeight = 768;
 
@@ -170,6 +268,7 @@ int main(int argc, char *argv[])
 	glmUnitize(mesh);
 	glmFacetNormals(mesh);
 	glmVertexNormals(mesh, 90.0);
+
 	glutMainLoop();
 
 	return 0;

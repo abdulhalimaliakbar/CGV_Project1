@@ -1,3 +1,4 @@
 .DS_store
 tmp
 __pycache__
+sequence*

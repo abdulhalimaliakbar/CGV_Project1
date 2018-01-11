@@ -1,21 +1,28 @@
-print("[INFO] Intializing speech recognition and microphone, please wait.")
 import speech_recognition as sr
+from termcolor import colored
 from os import path
+import os
 
 # obtain audio from the microphone
 r = sr.Recognizer()
 
 def listen():
-    with sr.Microphone() as source:
+    AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
+    with sr.AudioFile(AUDIO_FILE) as source:
         input("Press any key to record.")
         print("[INFO] Listening...")
-        audio = r.listen(source)
-        print("[INFO] audio recorded.")
+        audio = r.record(source)
+    #with sr.Microphone() as source:
+    #    input("Press any key to record.")
+    #    print("[INFO] Listening...")
+    #    audio = r.listen(source)
 
     # write audio to a WAV file
-    wavpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
-    with open(wavpath, "wb") as f:
-        f.write(audio.get_wav_data())
+    #wavpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
+    #with open(wavpath, "wb") as f:
+    #    f.write(audio.get_wav_data())
+    #    print("[INFO] Audio saved.")
+    os.system('sox input_voice/microphone-result.wav -n stat 2>&1 | sed -n 2p')
 
     """
     with sr.AudioFile('english.wav') as source:
@@ -28,14 +35,16 @@ def listen():
         # instead of `r.recognize_google(audio)`
         print("[INFO] Recognizing Speech.")
         transcript = r.recognize_google(audio)
-        print("[SUCCESS] Google Speech Recognition thinks you said:")
+        print(colored('[SUCCESS]', 'green'), "Google Speech Recognition thinks you said:")
         print('"'+transcript+'"')
 
         txtpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.txt")
         with open(txtpath, "w") as f:
             f.write(transcript)
 
+        return True
     except sr.UnknownValueError:
-        print("Google Speech Recognition could not understand audio")
+        print(colored('[FAIL]', 'red'), "Google Speech Recognition could not understand audio")
     except sr.RequestError as e:
-        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+        print(colored('[FAIL]', 'red'), "Could not request results from Google Speech Recognition service; {0}".format(e))
+    return False

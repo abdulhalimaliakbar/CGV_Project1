@@ -80,7 +80,12 @@ def predict():
     model.load_weights(weightpath)
 
     y = model.predict(xpad)
+    y = y[:, 16*2:16*3]
     print(y.shape)
+    for i, seq in enumerate(y.T):
+        with open('sequence' + str(i), 'w') as f:
+            for s in seq:
+                f.write(str(s)+'\n')
 
 #adam = optimizers.Adam(lr=1e-6)
 #model.compile(loss='mean_squared_error', optimizer=adam)
