@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <math.h>
 #include <vector>
 #include <numeric>
 #include <iostream>
 #include <OpenGL/gl.h>
 #include <GLUT/glut.h>
+
+#include <OpenAL/al.h>
+#include <OpenAL/alc.h>
+#include <AudioToolbox/AudioToolbox.h>
 
 #include "glm.h"
 #include "mtxlib.h"
@@ -20,6 +25,234 @@ int WindWidth, WindHeight;
 int last_x, last_y;
 
 const float epsilon = 1e-6;
+
+static bool LoadWAVFile(const char* filename, ALenum* format, ALvoid** data, ALsizei* size, ALsizei* freq, Float64* estimatedDurationOut)
+{
+	CFStringRef filenameStr = CFStringCreateWithCString( NULL, filename, kCFStringEncodingUTF8 );
+	CFURLRef url = CFURLCreateWithFileSystemPath( NULL, filenameStr, kCFURLPOSIXPathStyle, false );
+	CFRelease( filenameStr );
+
+	AudioFileID audioFile;
+	OSStatus error = AudioFileOpenURL( url, kAudioFileReadPermission, kAudioFileWAVEType, &audioFile );
+	CFRelease( url );
+
+	if ( error != noErr )
+	{
+		fprintf( stderr, "Error opening audio file. %d\n", error );
+		return false;
+	}
+
+	AudioStreamBasicDescription basicDescription;
+	UInt32 propertySize = sizeof(basicDescription);
+	error = AudioFileGetProperty( audioFile, kAudioFilePropertyDataFormat, &propertySize, &basicDescription );
+
+	if ( error != noErr )
+	{
+		fprintf( stderr, "Error reading audio file basic description. %d\n", error );
+		AudioFileClose( audioFile );
+		return false;
+	}
+
+	if ( basicDescription.mFormatID != kAudioFormatLinearPCM )
+	{
+		// Need PCM for Open AL. WAVs are (I believe) by definition PCM, so this check isn't necessary. It's just here
+		// in case I ever use this with another audio format.
+		fprintf( stderr, "Audio file is not linear-PCM. %d\n", basicDescription.mFormatID );
+		AudioFileClose( audioFile );
+		return false;
+	}
+
+	UInt64 audioDataByteCount = 0;
+	propertySize = sizeof(audioDataByteCount);
+	error = AudioFileGetProperty( audioFile, kAudioFilePropertyAudioDataByteCount, &propertySize, &audioDataByteCount );
+	if ( error != noErr )
+	{
+		fprintf( stderr, "Error reading audio file byte count. %d\n", error );
+		AudioFileClose( audioFile );
+		return false;
+	}
+
+	Float64 estimatedDuration = 0;
+	propertySize = sizeof(estimatedDuration);
+	error = AudioFileGetProperty( audioFile, kAudioFilePropertyEstimatedDuration, &propertySize, &estimatedDuration );
+	if ( error != noErr )
+	{
+		fprintf( stderr, "Error reading estimated duration of audio file. %d\n", error );
+		AudioFileClose( audioFile );
+		return false;
+	}
+
+	ALenum alFormat = 0;
+
+	if ( basicDescription.mChannelsPerFrame == 1 )
+	{
+		if ( basicDescription.mBitsPerChannel == 8 )
+			alFormat = AL_FORMAT_MONO8;
+		else if ( basicDescription.mBitsPerChannel == 16 )
+			alFormat = AL_FORMAT_MONO16;
+		else
+		{
+			fprintf( stderr, "Expected 8 or 16 bits for the mono channel but got %d\n", basicDescription.mBitsPerChannel );
+			AudioFileClose( audioFile );
+			return false;
+		}
+
+	}
+	else if ( basicDescription.mChannelsPerFrame == 2 )
+	{
+		if ( basicDescription.mBitsPerChannel == 8 )
+			alFormat = AL_FORMAT_STEREO8;
+		else if ( basicDescription.mBitsPerChannel == 16 )
+			alFormat = AL_FORMAT_STEREO16;
+		else
+		{
+			fprintf( stderr, "Expected 8 or 16 bits per channel but got %d\n", basicDescription.mBitsPerChannel );
+			AudioFileClose( audioFile );
+			return false;
+		}
+	}
+	else
+	{
+		fprintf( stderr, "Expected 1 or 2 channels in audio file but got %d\n", basicDescription.mChannelsPerFrame );
+		AudioFileClose( audioFile );
+		return false;
+	}
+
+	UInt32 numBytesToRead = audioDataByteCount;
+	void* buffer = malloc( numBytesToRead );
+
+	if ( buffer == NULL )
+	{
+		fprintf( stderr, "Error allocating buffer for audio data of size %u\n", numBytesToRead );
+		return false;
+	}
+
+	error = AudioFileReadBytes( audioFile, false, 0, &numBytesToRead, buffer );
+	AudioFileClose( audioFile );
+
+	if ( error != noErr )
+	{
+		fprintf( stderr, "Error reading audio bytes. %d\n", error );
+		free(buffer);
+		return false;
+	}
+
+	if ( numBytesToRead != audioDataByteCount )
+	{
+		fprintf( stderr, "Tried to read %lld bytes from the audio file but only got %d bytes\n", audioDataByteCount, numBytesToRead );
+		free(buffer);
+		return false;
+	}
+
+	*freq = basicDescription.mSampleRate;
+	*size = audioDataByteCount;
+	*format = alFormat;
+	*data = buffer;
+	*estimatedDurationOut = estimatedDuration;
+
+	return true;
+}
+ALuint audio_source = 0;
+void audio_init() {
+
+	//
+	// Initialization
+	//
+	ALCdevice* device = alcOpenDevice( NULL );
+
+	if ( device == NULL )
+	{
+		fputs( "Couldn't open device", stderr );
+		exit(1);
+	}
+
+	ALCcontext* context = alcCreateContext( device, NULL );
+
+	if ( context == NULL )
+	{
+		fputs( "Error creating context", stderr );
+		exit(1);
+	}
+
+	alcMakeContextCurrent( context );
+
+
+	//
+	// Generate buffers
+	//
+	alGetError(); // clear error code
+
+	ALuint buffer;
+	alGenBuffers( 1, &buffer );
+
+	ALenum error = alGetError();
+
+	if ( error != AL_NO_ERROR )
+	{
+		fprintf( stderr, "Couldn't generate buffer. %d\n", error );
+		exit(1);
+	}
+
+	ALenum format = 0;
+	ALvoid* data = NULL;
+	ALsizei size = 0, freq = 0;
+	Float64 estimatedDurationInSeconds = 0;
+
+	if ( !LoadWAVFile( "input_voice/microphone-result.wav", &format, &data, &size, &freq, &estimatedDurationInSeconds ) )
+	{
+		fputs( "Wouldn't load wav", stderr );
+		exit(1);
+	}
+
+	// copy the wav into AL buffer 0
+	alBufferData( buffer, format, data, size, freq );
+	free(data);
+	error = alGetError();
+	if ( error != AL_NO_ERROR )
+	{
+		fprintf( stderr, "Error copying helloworld wav. %d\n", error );
+		exit(1);
+	}
+
+	//
+	// Generate sources
+	//
+
+	alGenSources( 1, &audio_source );
+	error = alGetError();
+	if ( error != AL_NO_ERROR )
+	{
+		fprintf( stderr, "Error generating source. %d\n", error );
+		exit(1);
+	}
+
+	//
+	// Attach buffer to source
+	//
+	alSourcei( audio_source, AL_BUFFER, buffer );
+	error = alGetError();
+	if ( error != AL_NO_ERROR )
+	{
+		fprintf( stderr, "Error attaching buffer to source. %d\n", error );
+		exit(1);
+	}
+
+
+
+	/*int sleepDuration = ceil( estimatedDurationInSeconds );
+	printf( "sleeping for %d seconds while the file plays\n", sleepDuration );
+	sleep(sleepDuration);
+
+	alcMakeContextCurrent( NULL );
+	alcDestroyContext( context );
+	alcCloseDevice( device );
+
+	puts( "OK" );
+
+    return 0;*/
+}
+
+
 
 void Reshape(int width, int height)
 {
@@ -143,6 +376,9 @@ void Keyboard(unsigned char key, int x, int y) {
 	case 27: // ESC
 		exit(0);
 		break;
+	case 'x':
+		alSourcePlay( audio_source );
+		break;
 	case 'z':
 		all = 0;
 		animate = !animate;
@@ -151,31 +387,27 @@ void Keyboard(unsigned char key, int x, int y) {
 }
 
 
-
+int timeline = 100000;
 void timf(int value)
 {
+	int cur = glutGet(GLUT_ELAPSED_TIME);
+	int elapsed = cur - value;
+	timeline += elapsed;
 	glutPostRedisplay();
-	glutTimerFunc(40, timf, 40);
+	glutTimerFunc(40, timf, cur);
 	if (animate) {
-		pca_ref1 = source[source_sequece[0]][all];
-		pca_ref2 = source[source_sequece[1]][all];
-		pca_ref3 = source[source_sequece[2]][all];
-		pca_ref4 = source[source_sequece[3]][all];
-		if (all == 0)
-		{
-			//
+		all = timeline / 40;
+		if (all < source[0].size()) {
+			pca_ref1 = source[source_sequece[0]][all];
+			pca_ref2 = source[source_sequece[1]][all];
+			pca_ref3 = source[source_sequece[2]][all];
+			pca_ref4 = source[source_sequece[3]][all];
 			test();
+			glutSetWindowTitle((to_string(all) + "_f1=" + to_string(ref1) + "_f2=" + to_string(ref2) + "_f3=" + to_string(ref3) + "_f4=" + to_string(ref4)).c_str());
+		} else if (timeline / 40 > source[0].size() + 40) {
+			alSourcePlay( audio_source );
+			timeline = 0;
 		}
-		else
-		{
-			test();
-		}
-		all = (all + 1) % source[0].size();
-		/*
-		if (all == 119) {
-			animate = false;
-		}*/
-		glutSetWindowTitle((to_string(all) + "_f1=" + to_string(ref1) + "_f2=" + to_string(ref2) + "_f3=" + to_string(ref3) + "_f4=" + to_string(ref4)).c_str());
 	}
 }
 
@@ -269,6 +501,7 @@ int main(int argc, char *argv[])
 	glmFacetNormals(mesh);
 	glmVertexNormals(mesh, 90.0);
 
+	audio_init();
 	glutMainLoop();
 
 	return 0;

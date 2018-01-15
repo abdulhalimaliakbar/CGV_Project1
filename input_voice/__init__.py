@@ -6,22 +6,29 @@ import os
 # obtain audio from the microphone
 r = sr.Recognizer()
 
-def listen():
+def from_mic():
+    with sr.Microphone() as source:
+       input("Press any key to record.")
+       print("[INFO] Listening...")
+       audio = r.listen(source)
+
+    # write audio to a WAV file
+    wavpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
+    with open(wavpath, "wb") as f:
+       f.write(audio.get_wav_data())
+       print("[INFO] Audio saved.")
+    return audio
+
+def from_wav(path):
     AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
     with sr.AudioFile(AUDIO_FILE) as source:
         input("Press any key to record.")
         print("[INFO] Listening...")
         audio = r.record(source)
-    #with sr.Microphone() as source:
-    #    input("Press any key to record.")
-    #    print("[INFO] Listening...")
-    #    audio = r.listen(source)
 
-    # write audio to a WAV file
-    #wavpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
-    #with open(wavpath, "wb") as f:
-    #    f.write(audio.get_wav_data())
-    #    print("[INFO] Audio saved.")
+
+def listen():
+    audio = from_mic()
     os.system('sox input_voice/microphone-result.wav -n stat 2>&1 | sed -n 2p')
 
     """
