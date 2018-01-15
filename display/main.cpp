@@ -406,8 +406,10 @@ void timf(int value)
 			test();
 			glutSetWindowTitle((to_string(all) + "_f1=" + to_string(ref1) + "_f2=" + to_string(ref2) + "_f3=" + to_string(ref3) + "_f4=" + to_string(ref4)).c_str());
 		} else if (timeline / time_window > source[0].size() + time_window) {
+			// to fix
+			// use openAL to align audio with video
 			alSourcePlay( audio_source );
-			timeline = 360;
+			timeline = 360; // offset
 		}
 	}
 }

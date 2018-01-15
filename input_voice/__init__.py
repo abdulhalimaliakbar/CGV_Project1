@@ -1,6 +1,7 @@
 import speech_recognition as sr
 from termcolor import colored
 from os import path
+import time
 import os
 
 # obtain audio from the microphone
@@ -9,6 +10,10 @@ r = sr.Recognizer()
 def from_mic():
     with sr.Microphone() as source:
        input("Press [enter] to record.")
+       print("[INFO] Get ready.")
+       for i in range(3):
+           print(3-i)
+           time.sleep(1)
        print("[INFO] Listening...")
        audio = r.listen(source)
 
