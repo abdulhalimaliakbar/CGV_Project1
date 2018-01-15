@@ -63,6 +63,33 @@ def pad_raw(raw, WSIZE):
     result = np.array(result)
     return result
 
+def smooth(x,window_len=3,window='hanning'):
+
+    if x.ndim != 1:
+        print("bad, 1")
+
+    if x.size < window_len:
+        print("bad, 2")
+
+
+    if window_len<3:
+        return x
+
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        print("bad, 3")
+
+
+    s=np.r_[x[window_len-1:0:-1],x,x[-2:-window_len-1:-1]]
+    #print(len(s))
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('np.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    return y
+
 def predict():
     print('[INFO] Predicting...')
     phonemepath = path.join(path.dirname(path.realpath(__file__)), 'microphone-result.phoneme')
@@ -84,7 +111,8 @@ def predict():
     print(y.shape)
     for i, seq in enumerate(y.T):
         with open('sequence' + str(i), 'w') as f:
-            for s in seq:
+            smooth_seq = smooth(np.repeat(seq, 4), 11, 'flat')
+            for s in smooth_seq:
                 f.write(str(s)+'\n')
 
 #adam = optimizers.Adam(lr=1e-6)

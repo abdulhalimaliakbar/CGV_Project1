@@ -8,7 +8,7 @@ r = sr.Recognizer()
 
 def from_mic():
     with sr.Microphone() as source:
-       input("Press any key to record.")
+       input("Press [enter] to record.")
        print("[INFO] Listening...")
        audio = r.listen(source)
 
@@ -22,7 +22,7 @@ def from_mic():
 def from_wav(path):
     AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "microphone-result.wav")
     with sr.AudioFile(AUDIO_FILE) as source:
-        input("Press any key to record.")
+        input("Press [enter] to record.")
         print("[INFO] Listening...")
         audio = r.record(source)
 
@@ -43,7 +43,9 @@ def listen():
         print("[INFO] Recognizing Speech.")
         transcript = r.recognize_google(audio)
         print(colored('[SUCCESS]', 'green'), "Google Speech Recognition thinks you said:")
+        print('-' * len(transcript))
         print('"'+transcript+'"')
+        print('-' * len(transcript))
 
         txtpath = path.join(path.dirname(path.realpath(__file__)), "microphone-result.txt")
         with open(txtpath, "w") as f:

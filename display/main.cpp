@@ -394,9 +394,10 @@ void timf(int value)
 	int elapsed = cur - value;
 	timeline += elapsed;
 	glutPostRedisplay();
-	glutTimerFunc(40, timf, cur);
+	int time_window = 40/4;
+	glutTimerFunc(time_window, timf, cur);
 	if (animate) {
-		all = timeline / 40;
+		all = timeline / time_window;
 		if (all < source[0].size()) {
 			pca_ref1 = source[source_sequece[0]][all];
 			pca_ref2 = source[source_sequece[1]][all];
@@ -404,9 +405,9 @@ void timf(int value)
 			pca_ref4 = source[source_sequece[3]][all];
 			test();
 			glutSetWindowTitle((to_string(all) + "_f1=" + to_string(ref1) + "_f2=" + to_string(ref2) + "_f3=" + to_string(ref3) + "_f4=" + to_string(ref4)).c_str());
-		} else if (timeline / 40 > source[0].size() + 40) {
+		} else if (timeline / time_window > source[0].size() + time_window) {
 			alSourcePlay( audio_source );
-			timeline = 0;
+			timeline = 360;
 		}
 	}
 }
@@ -490,7 +491,7 @@ int main(int argc, char *argv[])
 	tbInit(GLUT_LEFT_BUTTON);
 	tbAnimate(GL_FALSE);
 
-	glutTimerFunc(40, timf, 0); // Set up timer for 40ms, about 25 fps
+	glutTimerFunc(0, timf, 0); // Set up timer for 40ms, about 25 fps
 
 	// load 3D model
 	std::cout << "Loading model ... ";
